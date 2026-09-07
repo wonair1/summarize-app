@@ -1,0 +1,44 @@
+services:
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./models/t5-small:/models/t5-small
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: summarize
+      DB_USER: summarize
+      DB_PASSWORD: summarize_password
+    depends_on:
+      - db
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./frontend:/app
+    environment:
+      API_URL: http://backend:8000/summarize
+    depends_on:
+      - backend
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: summarize
+      POSTGRES_USER: summarize
+      POSTGRES_PASSWORD: summarize_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
