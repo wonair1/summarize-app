@@ -1,0 +1,22 @@
+pipeline{
+  agent any
+  stages{
+    
+    stage ('publish'){
+      steps{
+        script{
+           docker.withRegistry('https://myregistry.com','registry-auth'){
+               myapp = docker.build("myregistry.com/frontend:test")
+               myapp.push()
+           }
+        }
+      }
+    }
+    
+    stage ('test'){
+      steps{ sh 'docker run --rm frontendtest echo hello' }
+    }
+    
+    
+  }
+}
