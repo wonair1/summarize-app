@@ -35,6 +35,7 @@ spec:
     REGISTRY       = 'myregistry.com'
     FRONTEND_IMAGE = 'myregistry.com/frontend'
     BACKEND_IMAGE  = 'myregistry.com/backend'
+    TRIVY = 'docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v trivy-cache:/root/.cache -v $PWD:/out aquasec/trivy:latest image --scanners vuln --severity HIGH,CRITICAL --timeout 15m'
   }
   stages {
     stage('Wait for docker') {
@@ -53,27 +54,52 @@ spec:
         }
       }
     }
-    stage('Frontend') {
+    stage('Frontend build') {
       steps {
         container('dind') {
-          sh '''
-            docker build -f Dockerfile.frontend -t $FRONTEND_IMAGE:$BUILD_NUMBER -t $FRONTEND_IMAGE:latest .
-            docker push $FRONTEND_IMAGE:$BUILD_NUMBER
-            docker push $FRONTEND_IMAGE:latest
-          '''
+          sh 'docker build -f Dockerfile.frontend -t $FRONTEND_IMAGE:$BUILD_NUMBER -t $FRONTEND_IMAGE:latest .'
         }
       }
     }
-    stage('Backend') {
+    stage('Frontend trivy') {
       steps {
         container('dind') {
-          sh '''
-            docker build -f Dockerfile.backend -t $BACKEND_IMAGE:$BUILD_NUMBER -t $BACKEND_IMAGE:latest .
-            docker push $BACKEND_IMAGE:$BUILD_NUMBER
-            docker push $BACKEND_IMAGE:latest
-          '''
+          sh 'eval $TRIVY --format template --template "@/contrib/html.tpl" -o /out/trivy-frontend.html $FRONTEND_IMAGE:$BUILD_NUMBER'
         }
       }
+    }
+    stage('Frontend push') {
+      steps {
+        container('dind') {
+          sh 'docker push $FRONTEND_IMAGE:$BUILD_NUMBER && docker push $FRONTEND_IMAGE:latest'
+        }
+      }
+    }
+    stage('Backend build') {
+      steps {
+        container('dind') {
+          sh 'docker build -f Dockerfile.backend -t $BACKEND_IMAGE:$BUILD_NUMBER -t $BACKEND_IMAGE:latest .'
+        }
+      }
+    }
+    stage('Backend trivy') {
+      steps {
+        container('dind') {
+          sh 'eval $TRIVY --format template --template "@/contrib/html.tpl" -o /out/trivy-backend.html $BACKEND_IMAGE:$BUILD_NUMBER'
+        }
+      }
+    }
+    stage('Backend push') {
+      steps {
+        container('dind') {
+          sh 'docker push $BACKEND_IMAGE:$BUILD_NUMBER && docker push $BACKEND_IMAGE:latest'
+        }
+      }
+    }
+  }
+  post {
+    always {
+      archiveArtifacts artifacts: 'trivy-*.html', allowEmptyArchive: true
     }
   }
 }
