@@ -19,9 +19,9 @@ spec:
     args: ["--insecure-registry=myregistry.com"]
     resources:
       requests:
-        memory: "512Mi"
+        memory: "1Gi"
       limits:
-        memory: "1536Mi"
+        memory: "3Gi"
     volumeMounts:
     - name: docker-data
       mountPath: /var/lib/docker
@@ -32,8 +32,9 @@ spec:
     }
   }
   environment {
-    REGISTRY = 'myregistry.com'
-    IMAGE    = 'myregistry.com/frontend'
+    REGISTRY       = 'myregistry.com'
+    FRONTEND_IMAGE = 'myregistry.com/frontend'
+    BACKEND_IMAGE  = 'myregistry.com/backend'
   }
   stages {
     stage('Wait for docker') {
@@ -43,23 +44,34 @@ spec:
         }
       }
     }
-    stage('Build frontend') {
-      steps {
-        container('dind') {
-          sh 'docker build -f Dockerfile.frontend -t $IMAGE:$BUILD_NUMBER -t $IMAGE:latest .'
-        }
-      }
-    }
-    stage('Push frontend') {
+    stage('Login registry') {
       steps {
         container('dind') {
           withCredentials([usernamePassword(credentialsId: 'registry-auth', usernameVariable: 'REG_USER', passwordVariable: 'REG_PW')]) {
-            sh '''
-              echo "$REG_PW" | docker login $REGISTRY -u "$REG_USER" --password-stdin
-              docker push $IMAGE:$BUILD_NUMBER
-              docker push $IMAGE:latest
-            '''
+            sh 'echo "$REG_PW" | docker login $REGISTRY -u "$REG_USER" --password-stdin'
           }
+        }
+      }
+    }
+    stage('Frontend') {
+      steps {
+        container('dind') {
+          sh '''
+            docker build -f Dockerfile.frontend -t $FRONTEND_IMAGE:$BUILD_NUMBER -t $FRONTEND_IMAGE:latest .
+            docker push $FRONTEND_IMAGE:$BUILD_NUMBER
+            docker push $FRONTEND_IMAGE:latest
+          '''
+        }
+      }
+    }
+    stage('Backend') {
+      steps {
+        container('dind') {
+          sh '''
+            docker build -f Dockerfile.backend -t $BACKEND_IMAGE:$BUILD_NUMBER -t $BACKEND_IMAGE:latest .
+            docker push $BACKEND_IMAGE:$BUILD_NUMBER
+            docker push $BACKEND_IMAGE:latest
+          '''
         }
       }
     }
