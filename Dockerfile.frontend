@@ -1,12 +1,15 @@
 FROM python:3.11-slim
 
+# pip가 Nexus PyPI 프록시에서 받도록 설정
+ARG PIP_INDEX_URL=http://172.16.0.200:8081/repository/pypi-proxy/simple/
+ARG PIP_TRUSTED_HOST=172.16.0.200
+
 WORKDIR /app
 
-COPY frontend/frontend.py .
+COPY frontend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-RUN pip install --no-cache-dir \
-    streamlit \
-    requests
+COPY frontend/frontend.py .
 
 ENV API_URL=http://backend:8000/summarize
 

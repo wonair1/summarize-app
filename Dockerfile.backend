@@ -1,5 +1,9 @@
 FROM huggingface/transformers-torch-light:latest
 
+# pip가 Nexus PyPI 프록시에서 받도록 설정
+ARG PIP_INDEX_URL=http://172.16.0.200:8081/repository/pypi-proxy/simple/
+ARG PIP_TRUSTED_HOST=172.16.0.200
+
 WORKDIR /app
 
 COPY requirements.txt .
