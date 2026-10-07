@@ -1,4 +1,5 @@
 pipeline {
+    options { disableConcurrentBuilds() }
   agent {
     kubernetes {
       yaml '''
